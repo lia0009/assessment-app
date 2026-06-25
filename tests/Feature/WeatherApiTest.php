@@ -60,6 +60,50 @@ class WeatherApiTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_cached_weather_endpoint_reuses_cache_for_equivalent_city_names(): void
+    {
+        Http::fake([
+            '*' => Http::response($this->weatherPayload('New York'), 200),
+        ]);
+
+        $this->getJson('/weather/New%20York/cached')
+            ->assertOk()
+            ->assertJsonPath('source', 'external')
+            ->assertJsonPath('city', 'New York');
+
+        $this->getJson('/weather/new-york/cached')
+            ->assertOk()
+            ->assertJsonPath('source', 'cache')
+            ->assertJsonPath('city', 'New York');
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_cached_weather_endpoint_does_not_cache_failed_provider_response(): void
+    {
+        Http::fakeSequence()
+            ->push(['message' => 'city not found'], 404)
+            ->push($this->weatherPayload(), 200);
+
+        $this->getJson('/weather/UnknownCity/cached')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'City not found.');
+
+        $this->getJson('/weather/UnknownCity/cached')
+            ->assertOk()
+            ->assertJsonPath('source', 'external')
+            ->assertJsonPath('city', 'Manila');
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_cached_weather_endpoint_returns_404_for_invalid_city_name(): void
+    {
+        $this->getJson('/weather/M@n1l$!/cached')
+            ->assertStatus(404)
+            ->assertJsonPath('message', 'Not Found.');
+    }
+
     public function test_weather_endpoint_returns_clear_error_when_city_is_not_found(): void
     {
         Http::fake([
@@ -99,10 +143,10 @@ class WeatherApiTest extends TestCase
             ->assertJsonPath('message', 'Not Found.');
     }
 
-    private function weatherPayload(): array
+    private function weatherPayload(string $city = 'Manila'): array
     {
         return [
-            'name' => 'Manila',
+            'name' => $city,
             'dt' => 1782297600,
             'main' => [
                 'temp' => 30.5,

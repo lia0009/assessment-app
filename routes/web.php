@@ -8,11 +8,7 @@ Route::get('/', function () {
 });
 
 Route::get('/weather/{city}', [WeatherController::class, 'show'])
-    ->where('city', '[a-zA-Z\s\-]+'); // Only allows letters, spaces, and hyphens;
+    ->where('city', '[a-zA-Z\s\-]+');
 
 Route::get('/weather/{city}/cached', [WeatherController::class, 'cached'])
-    ->where('city', '[a-zA-Z\s\-]+'); // Only allows letters, spaces, and hyphens;
-
-// Route::fallback(function () {
-//     return response()->json(['message' => 'Not Found.'], 404);
-// });
+    ->where('city', '[a-zA-Z\s\-]+');
